@@ -16,7 +16,7 @@ const requests = {
   fetchComedyMovies: `/discover/movie?api_key=${process.env.REACT_APP_TMDB_API_KEY}&with_genres=35`,
   fetchHorrorMovies: `/discover/movie?api_key=${process.env.REACT_APP_TMDB_API_KEY}&with_genres=28`,
   fetchRomanceMovies: `/discover/movie?api_key=${process.env.REACT_APP_TMDB_API_KEY}&with_genres=10749`,
-  fetchDocumentaries: `/discover/movie?api_key=${process.env.REACT_APP_TMDB_API_KEY}&with_genres=99`
+  fetchDocumentaries: `/discover/movie?api_key=${process.env.REACT_APP_TMDB_API_KEY}&with_genres=99`,
 };
 
 /**
@@ -26,11 +26,11 @@ const requests = {
 const get = <T extends unknown>(url: string): Promise<T> =>
   preferStorage(url, () =>
     fetch(`https://api.themoviedb.org/3${url}`)
-      .then(response => {
+      .then((response) => {
         if (!response.ok) throw Error(`Response not okay: ${response}`);
         return response.json();
       })
-      .catch(error => {
+      .catch((error) => {
         console.error('Failed to fetch:', error);
       })
   );
@@ -54,7 +54,7 @@ enum Pad {
   Small = '0.5rem',
   Medium = '1rem',
   Large = '2rem',
-  XLarge = '3rem'
+  XLarge = '3rem',
 }
 
 const Posters = styled.div`
@@ -91,7 +91,7 @@ const Poster = styled.img`
  */
 type ApiItem = Record<string, unknown>;
 
-const ContentRow: FC<{
+const MoviesRow: FC<{
   title: string;
   fetchUrl: string;
   large?: boolean;
@@ -102,7 +102,7 @@ const ContentRow: FC<{
   useEffect(() => {
     let subscribed = true;
     get<{ results: ApiItem[] }>(fetchUrl)
-      .then(response => {
+      .then((response) => {
         if (!subscribed) return;
         setMovies(response.results);
       })
@@ -119,7 +119,7 @@ const ContentRow: FC<{
     <div>
       <h4>{title}</h4>
       <Posters>
-        {movies.map(movie => (
+        {movies.map((movie) => (
           <Poster
             key={movie.id as number}
             large={large}
@@ -136,28 +136,147 @@ const ContentRow: FC<{
   );
 };
 
-export const App = () => {
+const randomFrom = <T extends unknown>(array: T[]): T | null => {
+  if (array.length === 0) return null;
+  const randomIndex = Math.floor(Math.random() * array.length - 1);
+  return array[randomIndex];
+};
+
+const BannerContainer = styled.header`
+  background-size: cover;
+  background-position: center center;
+  background-image: ${(props: { backgroundUrl: string }) =>
+    `url(${props.backgroundUrl})`};
+  color: white;
+  object-fit: contain;
+  height: 450px;
+`;
+
+const BannerContent = styled.div`
+  margin-left: 30px;
+  padding-top: 140px;
+  height: 190px;
+
+  h1 {
+    font-size: 3rem;
+    font-weight: 600;
+    padding-bottom: ${Pad.XSmall};
+  }
+`;
+
+const BannerButtonsContainer = styled.div``;
+
+const BannerButton = styled.button``;
+
+const BannerDescription = styled.p`
+  width: 45rem;
+  line-height: 1.3;
+  padding-top: ${Pad.Medium};
+  font-size: 0.8rem;
+  max-width: 360px;
+  height: 80px;
+`;
+
+const Banner: FC = () => {
+  const [movie, setMovie] = useState<ApiItem | null>(null);
+  useEffect(() => {
+    let subscribed = true;
+    get<{ results: ApiItem[] }>(requests.fetchNetflixOriginals)
+      .then((response) => {
+        if (!subscribed) return;
+        setMovie(randomFrom(response.results));
+      })
+      .catch((error) => {
+        if (!subscribed) return;
+        console.error('error is:', error);
+      });
+    return () => {
+      subscribed = false;
+    };
+  }, []);
+  return (
+    <BannerContainer backgroundUrl={imagesUrl + movie?.backdrop_path}>
+      <BannerContent>
+        <h1>
+          {(movie?.title ?? movie?.name ?? movie?.original_name) as string}
+        </h1>
+        <BannerButtonsContainer>
+          <BannerButton>Play</BannerButton>
+          <BannerButton>My List</BannerButton>
+        </BannerButtonsContainer>
+        <BannerDescription>{movie?.overview as string}</BannerDescription>
+      </BannerContent>
+    </BannerContainer>
+  );
+};
+
+export const App: FC = () => {
   return (
     <main>
       <h3>Netflyx</h3>
-      <ContentRow
+      <Banner />
+      <MoviesRow
         large
         title="NETFLIX ORIGINALS"
         fetchUrl={requests.fetchNetflixOriginals}
       />
-      <ContentRow title="Trending Now" fetchUrl={requests.fetchTrending} />
-      <ContentRow title="Top Rated" fetchUrl={requests.fetchTopRated} />
-      <ContentRow title="Action Movies" fetchUrl={requests.fetchActionMovies} />
-      <ContentRow title="Comedy Movies" fetchUrl={requests.fetchComedyMovies} />
-      <ContentRow title="Horror Movies" fetchUrl={requests.fetchHorrorMovies} />
-      <ContentRow
+      <MoviesRow title="Trending Now" fetchUrl={requests.fetchTrending} />
+      <MoviesRow title="Top Rated" fetchUrl={requests.fetchTopRated} />
+      <MoviesRow title="Action Movies" fetchUrl={requests.fetchActionMovies} />
+      <MoviesRow title="Comedy Movies" fetchUrl={requests.fetchComedyMovies} />
+      <MoviesRow title="Horror Movies" fetchUrl={requests.fetchHorrorMovies} />
+      <MoviesRow
         title="Romance Movies"
         fetchUrl={requests.fetchRomanceMovies}
       />
-      <ContentRow
-        title="Documentaries"
-        fetchUrl={requests.fetchDocumentaries}
-      />
+      <MoviesRow title="Documentaries" fetchUrl={requests.fetchDocumentaries} />
     </main>
   );
 };
+
+// class AsyncDataError<T extends unknown> extends Error {
+//   // TODO Something useful with `data`.
+//   constructor(data: T) {
+//     super();
+//     if (Error.captureStackTrace) Error.captureStackTrace(this, AsyncDataError);
+//     this.name = 'AsyncDataError';
+//   }
+// }
+
+// type AsyncData<T> = 'AsyncData::Loading' | AsyncDataError<unknown> | T;
+
+// const AsyncData = {
+//   Loading: 'AsyncData::Loading' as const,
+//   isLoading: <T extends unknown>(data: AsyncData<T>) =>
+//     data === AsyncData.Loading,
+//   error: (error: unknown) => new AsyncDataError(error),
+// };
+
+// const useAsyncData = <T extends unknown>(
+//   getData: () => Promise<T>,
+//   deps: unknown[]
+// ): AsyncData<T> => {
+//   const [data, setData] = useState<AsyncData<T>>(AsyncData.Loading);
+
+//   useEffect(() => {
+//     getData()
+//       .then((result) => {
+//         setData(result);
+//       })
+//       .catch((error) => {
+//         setData(AsyncData.error(error));
+//       });
+//   }, deps);
+
+//   return data;
+// };
+
+// const AsyncDataView = <T extends unknown>(props: {
+//   data: AsyncData<T>;
+// }): React.ReactNode => {
+//   if (AsyncData.isLoading(props.data)) {
+//     return <div>Loading...</div>;
+//   }
+//   // TODO
+//   return <div></div>;
+// };
