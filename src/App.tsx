@@ -86,12 +86,20 @@ const Poster = styled.img`
   }
 `;
 
+const MovieRowContainer = styled.div`
+  margin-left: ${Pad.Medium};
+
+  h4 {
+    margin: ${Pad.XSmall};
+  }
+`;
+
 /**
  * Used to represent individual objects (like Movie) coming from the API.
  */
 type ApiItem = Record<string, unknown>;
 
-const MoviesRow: FC<{
+const MovieRow: FC<{
   title: string;
   fetchUrl: string;
   large?: boolean;
@@ -116,7 +124,7 @@ const MoviesRow: FC<{
   }, [fetchUrl]);
 
   return (
-    <div>
+    <MovieRowContainer>
       <h4>{title}</h4>
       <Posters>
         {movies.map((movie) => (
@@ -132,10 +140,20 @@ const MoviesRow: FC<{
           />
         ))}
       </Posters>
-    </div>
+    </MovieRowContainer>
   );
 };
 
+/**
+ * Ensure the given string `str` fits into the given length `limit`, replacing
+ * the overflow with "..." if necessary.
+ */
+const truncate = (limit: number, str: string): string =>
+  str?.length > limit ? str?.substr(0, limit - 1) + '...' : str;
+
+/**
+ * Select a random element (or return `null` if empty) from the given array.
+ */
 const randomFrom = <T extends unknown>(array: T[]): T | null => {
   if (array.length === 0) return null;
   const randomIndex = Math.floor(Math.random() * array.length - 1);
@@ -149,7 +167,7 @@ const BannerContainer = styled.header`
     `url(${props.backgroundUrl})`};
   color: white;
   object-fit: contain;
-  height: 450px;
+  height: 448px;
 `;
 
 const BannerContent = styled.div`
@@ -164,9 +182,31 @@ const BannerContent = styled.div`
   }
 `;
 
-const BannerButtonsContainer = styled.div``;
+const BannerButtonsContainer = styled.div`
+  display: flex;
+  flex-direction: row;
 
-const BannerButton = styled.button``;
+  & > *:not(:last-child) {
+    margin-right: ${Pad.Medium};
+  }
+`;
+
+const BannerButton = styled.button`
+  cursor: pointer;
+  color: #fff;
+  outline: none;
+  border: none;
+  font-weight: 700;
+  border-radius: 2px;
+  padding: ${Pad.Small} ${Pad.Large};
+  background-color: rgba(50, 50, 50, 0.5);
+
+  &:hover {
+    color: #000;
+    background-color: #e6e6e6;
+    transition: all 200ms;
+  }
+`;
 
 const BannerDescription = styled.p`
   width: 45rem;
@@ -175,6 +215,18 @@ const BannerDescription = styled.p`
   font-size: 0.8rem;
   max-width: 360px;
   height: 80px;
+  text-shadow: #000 0 0 8px;
+`;
+
+const BannerFade = styled.div`
+  width: 100%;
+  height: 7.4rem;
+  background-image: linear-gradient(
+    180deg,
+    transparent,
+    rgba(40, 40, 40, 0.6),
+    #111
+  );
 `;
 
 const Banner: FC = () => {
@@ -204,35 +256,89 @@ const Banner: FC = () => {
           <BannerButton>Play</BannerButton>
           <BannerButton>My List</BannerButton>
         </BannerButtonsContainer>
-        <BannerDescription>{movie?.overview as string}</BannerDescription>
+        <BannerDescription>
+          {truncate(150, movie?.overview as string)}
+        </BannerDescription>
       </BannerContent>
+      <BannerFade />
     </BannerContainer>
   );
 };
 
-export const App: FC = () => {
+const NavBarContainer = styled.nav`
+  display: flex;
+  justify-content: space-between;
+  position: fixed;
+  top: 0;
+  width: 100%;
+  padding: ${Pad.Medium};
+  height: 30px;
+  z-index: 1;
+  transition: background-color 450ms ease-in;
+
+  background-color: ${(props: { scrolled?: boolean }) =>
+    props?.scrolled ? '#111' : 'none'};
+`;
+
+const NavBarLogo = styled.img.attrs(() => ({
+  src:
+    'https://upload.wikimedia.org/wikipedia/commons/0/08/Netflix_2015_logo.svg',
+  alt: 'Netflix Logo',
+}))`
+  position: fixed;
+  left: 20px;
+  width: 80px;
+  object-fit: contain;
+`;
+
+const NavBarAvatar = styled.img.attrs(() => ({
+  src: 'https://diggwithme.files.wordpress.com/2012/09/defaut-avatar.png',
+  alt: 'Netflix Avatar',
+}))`
+  position: fixed;
+  right: 20px;
+  width: 30px;
+  object-fit: contain;
+`;
+
+const NavBar: FC = () => {
+  const [scrolled, setScrolled] = useState(false);
+  useEffect(() => {
+    const effect = () => setScrolled(window.scrollY > 100);
+    window.addEventListener('scroll', effect);
+    return () => window.removeEventListener('scroll', effect);
+  }, []);
   return (
-    <main>
-      <h3>Netflyx</h3>
-      <Banner />
-      <MoviesRow
-        large
-        title="NETFLIX ORIGINALS"
-        fetchUrl={requests.fetchNetflixOriginals}
-      />
-      <MoviesRow title="Trending Now" fetchUrl={requests.fetchTrending} />
-      <MoviesRow title="Top Rated" fetchUrl={requests.fetchTopRated} />
-      <MoviesRow title="Action Movies" fetchUrl={requests.fetchActionMovies} />
-      <MoviesRow title="Comedy Movies" fetchUrl={requests.fetchComedyMovies} />
-      <MoviesRow title="Horror Movies" fetchUrl={requests.fetchHorrorMovies} />
-      <MoviesRow
-        title="Romance Movies"
-        fetchUrl={requests.fetchRomanceMovies}
-      />
-      <MoviesRow title="Documentaries" fetchUrl={requests.fetchDocumentaries} />
-    </main>
+    <NavBarContainer scrolled={scrolled}>
+      <NavBarLogo />
+      <NavBarAvatar />
+    </NavBarContainer>
   );
 };
+
+const AppContainer = styled.div`
+  background-color: #111;
+  color: #fff;
+`;
+
+export const App: FC = () => (
+  <AppContainer>
+    <NavBar />
+    <Banner />
+    <MovieRow
+      large
+      title="NETFLIX ORIGINALS"
+      fetchUrl={requests.fetchNetflixOriginals}
+    />
+    <MovieRow title="Trending Now" fetchUrl={requests.fetchTrending} />
+    <MovieRow title="Top Rated" fetchUrl={requests.fetchTopRated} />
+    <MovieRow title="Action Movies" fetchUrl={requests.fetchActionMovies} />
+    <MovieRow title="Comedy Movies" fetchUrl={requests.fetchComedyMovies} />
+    <MovieRow title="Horror Movies" fetchUrl={requests.fetchHorrorMovies} />
+    <MovieRow title="Romance Movies" fetchUrl={requests.fetchRomanceMovies} />
+    <MovieRow title="Documentaries" fetchUrl={requests.fetchDocumentaries} />
+  </AppContainer>
+);
 
 // class AsyncDataError<T extends unknown> extends Error {
 //   // TODO Something useful with `data`.
