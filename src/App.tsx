@@ -1,9 +1,11 @@
 import React, { FC, useState, useEffect } from 'react';
 import styled from 'styled-components';
+import Youtube from 'react-youtube';
+import fetchMovieTrailerUrl from 'movie-trailer';
 
 import './App.css';
 
-const imagesUrl = 'https://images.tmdb.org/t/p/original/';
+const imagesUrl = 'https://image.tmdb.org/t/p/original/';
 
 /**
  * The API endpoints the application depends on.
@@ -57,11 +59,15 @@ enum Pad {
   XLarge = '3rem',
 }
 
-const Posters = styled.div`
+const MoviePostersContainer = styled.div`
   display: flex;
   overflow-y: hidden;
   overflow-x: scroll; // Netflix mode!
   padding: ${Pad.Medium};
+
+  &:hover {
+    cursor: pointer;
+  }
 
   & > *:not(:last-child) {
     margin-right: ${Pad.Medium};
@@ -72,7 +78,7 @@ const Posters = styled.div`
   }
 `;
 
-const Poster = styled.img`
+const MoviePoster = styled.img`
   width: 100%;
   object-fit: contain;
   max-height: ${(props: { large?: boolean }) =>
@@ -105,8 +111,8 @@ const MovieRow: FC<{
   large?: boolean;
 }> = ({ title, fetchUrl, large }) => {
   const [movies, setMovies] = useState<ApiItem[]>([]);
+  const [trailerId, setTrailerId] = useState('');
 
-  // Fetch and display the content for the given url
   useEffect(() => {
     let subscribed = true;
     get<{ results: ApiItem[] }>(fetchUrl)
@@ -123,12 +129,30 @@ const MovieRow: FC<{
     };
   }, [fetchUrl]);
 
+  const toggleTrailer = (movie: ApiItem) => {
+    if (trailerId) {
+      setTrailerId('');
+      return;
+    }
+    fetchMovieTrailerUrl(getMovieName(movie))
+      .then((absoluteUrl) => {
+        const { search } = new URL(absoluteUrl);
+        const params = new URLSearchParams(search);
+        const youtubeVideoId = params.get('v');
+        if (!youtubeVideoId) return;
+        setTrailerId(youtubeVideoId);
+      })
+      .catch((_error) => {
+        // TODO AsyncData - Tell the user what happened
+      });
+  };
+
   return (
     <MovieRowContainer>
       <h4>{title}</h4>
-      <Posters>
+      <MoviePostersContainer>
         {movies.map((movie) => (
-          <Poster
+          <MoviePoster
             key={movie.id as number}
             large={large}
             src={
@@ -137,12 +161,31 @@ const MovieRow: FC<{
               (large ? movie.poster_path : movie.backdrop_path)
             }
             alt={movie.name as string}
+            onClick={() => toggleTrailer(movie)}
           />
         ))}
-      </Posters>
+      </MoviePostersContainer>
+      {trailerId && (
+        <Youtube
+          videoId={trailerId}
+          opts={{
+            height: '390',
+            width: '100%',
+            playerVars: {
+              autoplay: 1,
+            },
+          }}
+        />
+      )}
     </MovieRowContainer>
   );
 };
+
+/**
+ * Used to handle inconsistencies in API data.
+ */
+const getMovieName = (movie: ApiItem): string =>
+  (movie?.title ?? movie?.name ?? movie?.original_name) as string;
 
 /**
  * Ensure the given string `str` fits into the given length `limit`, replacing
@@ -179,6 +222,7 @@ const BannerContent = styled.div`
     font-size: 3rem;
     font-weight: 600;
     padding-bottom: ${Pad.XSmall};
+    margin: 0;
   }
 `;
 
@@ -249,9 +293,7 @@ const Banner: FC = () => {
   return (
     <BannerContainer backgroundUrl={imagesUrl + movie?.backdrop_path}>
       <BannerContent>
-        <h1>
-          {(movie?.title ?? movie?.name ?? movie?.original_name) as string}
-        </h1>
+        {movie && <h1>{getMovieName(movie)}</h1>}
         <BannerButtonsContainer>
           <BannerButton>Play</BannerButton>
           <BannerButton>My List</BannerButton>
